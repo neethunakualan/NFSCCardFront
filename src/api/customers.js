@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
-function authHeaders(includeJson = true) {
+function authHeaders(includeJson = false) {
   const token = localStorage.getItem('accessToken')
   const headers = new Headers()
 
@@ -51,7 +51,7 @@ export async function fetchCustomerById(customerId) {
   return handleResponse(response)
 }
 
-export async function createCustomer(customer) {
+export async function createCustomersss(customer) {
   const response = await fetch(`${API_BASE_URL}/api/customers`, {
     method: 'POST',
     headers: authHeaders(true),
@@ -60,6 +60,19 @@ export async function createCustomer(customer) {
   return handleResponse(response)
 }
 
+export async function createCustomer(formData) {
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/customers`,
+    {
+      method: 'POST',
+      headers: authHeaders(false),
+      body: formData,
+    }
+  )
+
+  return handleResponse(response)
+}
 export async function updateCustomer(customerId, customer) {
   const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}`, {
     method: 'PUT',
