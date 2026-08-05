@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 function CustomerFormPage({
   mode,
@@ -8,6 +8,10 @@ function CustomerFormPage({
   onSave,
   onCancel,
 }) {
+  const apiBaseUrl = import.meta.env.VITE_API_URL || ''
+  const fileInputRef = useRef(null)
+  const previewObjectUrlRef = useRef('')
+  const [imagePreviewSrc, setImagePreviewSrc] = useState('')
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -23,6 +27,25 @@ function CustomerFormPage({
     bio: '',
     profileImage: null,
   })
+
+  const resolveProfileImageSrc = (value) => {
+    if (!value) return ''
+
+    const raw = String(value).trim()
+    if (!raw) return ''
+
+    if (/^(https?:\/\/|data:|blob:)/i.test(raw)) {
+      return raw
+    }
+
+    if (!apiBaseUrl) {
+      return raw
+    }
+
+    const normalizedBase = apiBaseUrl.replace(/\/+$/, '')
+    const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`
+    return `${normalizedBase}${normalizedPath}`
+  }
 
   useEffect(() => {
     if (mode === 'edit' && customer) {
@@ -41,16 +64,35 @@ function CustomerFormPage({
         bio: customer.bio || '',
         profileImage: null,
       })
+
+      setImagePreviewSrc(
+        resolveProfileImageSrc(
+          customer.profileImageUrl || customer.profileImage || customer.imageUrl || customer.image
+        )
+      )
+    } else if (mode === 'create') {
+      setImagePreviewSrc('')
     }
   }, [mode, customer])
+
+  useEffect(() => {
+    return () => {
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current)
+      }
+    }
+  }, [])
 
 
   const handleChange = (event) => {
     const { name, value } = event.target
 
+    const isNumericField = name === 'phoneNumber' || name === 'whatsAppNumber'
+    const nextValue = isNumericField ? value.replace(/\D/g, '') : value
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: nextValue,
     }))
   }
 
@@ -58,10 +100,42 @@ function CustomerFormPage({
   const handleImageChange = (event) => {
     const file = event.target.files[0]
 
+    if (!file) {
+      return
+    }
+
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current)
+    }
+
+    const previewSrc = URL.createObjectURL(file)
+    previewObjectUrlRef.current = previewSrc
+
+    setImagePreviewSrc(previewSrc)
+
     setFormData((prev) => ({
       ...prev,
       profileImage: file,
     }))
+  }
+
+
+  const handleRemoveImage = () => {
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current)
+      previewObjectUrlRef.current = ''
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      profileImage: null,
+    }))
+
+    setImagePreviewSrc('')
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
 
@@ -124,228 +198,239 @@ function CustomerFormPage({
         <p>Loading customer...</p>
       ) : (
 
-        <form
-          className="item-form"
-          onSubmit={handleSubmit}
-        >
+        <form className="customer-form" onSubmit={handleSubmit}>
 
-          {error ? (
-            <p className="message error">
-              {error}
-            </p>
-          ) : null}
+        {/* Profile + Personal */}
+        <section className="card">
+          <h2>Personal Information</h2>
+      
+          <div className="profile-section">
+      
+            <div className="image-upload">
+              <div className="avatar-wrap">
+                <div className="avatar">
+                  {imagePreviewSrc ? (
+                    <img
+                      src={imagePreviewSrc}
+                      alt="Profile preview"
+                    />
+                  ) : (
+                    <span className="avatar-placeholder">
+                      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.6">
+                        <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+                        <circle cx="12" cy="13" r="3.5" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
 
+                <button
+                  type="button"
+                  className="avatar-edit-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Upload photo"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+                    <circle cx="12" cy="13" r="3.5" />
+                  </svg>
+                </button>
+              </div>
 
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="image-upload-input"
+              />
 
-          <label htmlFor="firstName">
-            First Name
-          </label>
+              <div className="image-upload-actions">
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {imagePreviewSrc ? 'Change photo' : 'Upload photo'}
+                </button>
 
-          <input
-            id="firstName"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-            placeholder="First name"
-          />
+                {imagePreviewSrc && (
+                  <button
+                    type="button"
+                    className="text-button danger"
+                    onClick={handleRemoveImage}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
 
+              <p className="image-upload-hint">JPG or PNG, up to 5MB</p>
+            </div>
+      
+            <div className="grid">
+      
+              <div>
+                <label>First Name</label>
+                <input
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                />
+              </div>
+      
+              <div>
+                <label>Last Name</label>
+                <input
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                />
+              </div>
+      
+              <div>
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+      
+              <div>
+                <label>Phone</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                />
+              </div>
+      
+              <div>
+                <label>WhatsApp</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  name="whatsAppNumber"
+                  value={formData.whatsAppNumber}
+                  onChange={handleChange}
+                />
+              </div>
+      
+            </div>
+      
+          </div>
+      
+        </section>
+      
+        {/* Business */}
+      
+        <section className="card">
+          <h2>Business Information</h2>
+      
+          <div className="grid">
+            <div>
+              <label>Company Name</label>
+              <input
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleChange}
+              />
+            </div>
 
+            <div>
+              <label>Job Title</label>
+              <input
+                name="jobTitle"
+                value={formData.jobTitle}
+                onChange={handleChange}
+              />
+            </div>
 
-          <label htmlFor="lastName">
-            Last Name
-          </label>
+            <div>
+              <label>Website</label>
+              <input
+                name="website"
+                value={formData.website}
+                onChange={handleChange}
+              />
+            </div>
+      
+          </div>
+        </section>
+      
+        {/* Social */}
+      
+        <section className="card">
+          <h2>Social Media</h2>
+      
+          <div className="grid">
+            <div>
+              <label>Instagram</label>
+              <input
+                name="instagram"
+                value={formData.instagram}
+                onChange={handleChange}
+              />
+            </div>
 
-          <input
-            id="lastName"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-            placeholder="Last name"
-          />
+            <div>
+              <label>LinkedIn</label>
+              <input
+                name="linkedIn"
+                value={formData.linkedIn}
+                onChange={handleChange}
+              />
+            </div>
 
-
-
-          <label htmlFor="email">
-            Email
-          </label>
-
-          <input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            placeholder="Email"
-          />
-
-
-
-          <label htmlFor="phoneNumber">
-            Phone Number
-          </label>
-
-          <input
-            id="phoneNumber"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            placeholder="Phone number"
-          />
-
-
-
-          <label htmlFor="whatsAppNumber">
-            WhatsApp Number
-          </label>
-
-          <input
-            id="whatsAppNumber"
-            name="whatsAppNumber"
-            value={formData.whatsAppNumber}
-            onChange={handleChange}
-            placeholder="WhatsApp number"
-          />
-
-
-
-          <label htmlFor="companyName">
-            Company Name
-          </label>
-
-          <input
-            id="companyName"
-            name="companyName"
-            value={formData.companyName}
-            onChange={handleChange}
-            placeholder="Company name"
-          />
-
-
-
-          <label htmlFor="jobTitle">
-            Job Title
-          </label>
-
-          <input
-            id="jobTitle"
-            name="jobTitle"
-            value={formData.jobTitle}
-            onChange={handleChange}
-            placeholder="Job title"
-          />
-
-
-
-          <label htmlFor="website">
-            Website
-          </label>
-
-          <input
-            id="website"
-            name="website"
-            value={formData.website}
-            onChange={handleChange}
-            placeholder="Website"
-          />
-
-
-
-          <label htmlFor="instagram">
-            Instagram
-          </label>
-
-          <input
-            id="instagram"
-            name="instagram"
-            value={formData.instagram}
-            onChange={handleChange}
-            placeholder="Instagram"
-          />
-
-
-
-          <label htmlFor="linkedIn">
-            LinkedIn
-          </label>
-
-          <input
-            id="linkedIn"
-            name="linkedIn"
-            value={formData.linkedIn}
-            onChange={handleChange}
-            placeholder="LinkedIn"
-          />
-
-
-
-          <label htmlFor="facebook">
-            Facebook
-          </label>
-
-          <input
-            id="facebook"
-            name="facebook"
-            value={formData.facebook}
-            onChange={handleChange}
-            placeholder="Facebook"
-          />
-
-
-
-          <label htmlFor="profileImage">
-            Profile Image
-          </label>
-
-          <input
-            type="file"
-            id="profileImage"
-            name="profileImage"
-            accept="image/*"
-            onChange={handleImageChange}
-          />
-
-
-
-          <label htmlFor="bio">
-            Bio
-          </label>
-
+            <div>
+              <label>Facebook</label>
+              <input
+                name="facebook"
+                value={formData.facebook}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+      
+        </section>
+      
+        {/* Bio */}
+      
+        <section className="card">
+          <h2>About Customer</h2>
+      
           <textarea
-            id="bio"
+            rows={5}
             name="bio"
-            rows="4"
             value={formData.bio}
             onChange={handleChange}
-            placeholder="Bio"
           />
-
-
-
-          <div className="form-actions">
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-
-
-            <button
-              type="submit"
-              className="primary-button"
-            >
-              Save
-            </button>
-
-          </div>
-
-
-        </form>
+        </section>
+      
+        <div className="form-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+      
+          <button
+            type="submit"
+            className="primary-button"
+          >
+            Save Customer
+          </button>
+        </div>
+      
+      </form>
 
       )}
 

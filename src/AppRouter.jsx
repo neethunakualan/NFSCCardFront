@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Routes, Route, useNavigate, useParams } from 'react-router-dom'
 import LoginPage from './components/LoginPage'
 import HomePage from './components/HomePage'
+import DigitalCardPage from './components/DigitalCardPage'
 import CustomerListPage from './components/CustomerListPage'
 import CustomerDetailPage from './components/CustomerDetailPage'
 import CustomerFormPage from './components/CustomerFormPage'
+import AppLayout from './components/AppLayout'
 import { fetchCustomers, fetchCustomerById, fetchMyCustomer, createCustomer, updateCustomer } from './api/customers'
 
 function CustomerListRoute({ isAdmin }) {
@@ -43,7 +45,6 @@ function CustomerListRoute({ isAdmin }) {
       onViewDetail={(customer) => navigate(`/customers/${customer.customerId}`)}
       onEdit={(customer) => navigate(`/customers/${customer.customerId}/edit`)}
       onCreate={() => navigate('/customers/create')}
-      onBack={() => navigate('/')}
     />
   )
 }
@@ -81,7 +82,6 @@ function CustomerDetailRoute() {
       isLoading={loading}
       error={error}
       onEdit={() => navigate(`/customers/${id}/edit`)}
-      onBack={() => navigate('/customers')}
     />
   )
 }
@@ -165,6 +165,12 @@ function AppRouter() {
 
   const isAdmin = userProfile?.role === 'Admin'
 
+  const withLayout = (element) => (
+    <AppLayout user={userProfile} isAdmin={isAdmin} onLogout={handleLogout}>
+      {element}
+    </AppLayout>
+  )
+
   return (
     <BrowserRouter>
       <Routes>
@@ -177,24 +183,28 @@ function AppRouter() {
         <Route
           path="/"
           element={
-            userProfile ? <HomePage user={userProfile} isAdmin={isAdmin} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+            userProfile ? withLayout(<HomePage user={userProfile} isAdmin={isAdmin} />) : <Navigate to="/login" replace />
           }
         />
         <Route
+          path="/digital-card"
+          element={userProfile ? withLayout(<DigitalCardPage user={userProfile} />) : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/customers"
-          element={userProfile ? <CustomerListRoute isAdmin={userProfile.role === 'Admin'} /> : <Navigate to="/login" replace />}
+          element={userProfile ? withLayout(<CustomerListRoute isAdmin={userProfile.role === 'Admin'} />) : <Navigate to="/login" replace />}
         />
         <Route
           path="/customers/create"
-          element={userProfile?.role === 'Admin' ? <CustomerCreateRoute /> : <Navigate to="/customers" replace />}
+          element={userProfile?.role === 'Admin' ? withLayout(<CustomerCreateRoute />) : <Navigate to="/customers" replace />}
         />
         <Route
           path="/customers/:id"
-          element={userProfile ? <CustomerDetailRoute /> : <Navigate to="/login" replace />}
+          element={userProfile ? withLayout(<CustomerDetailRoute />) : <Navigate to="/login" replace />}
         />
         <Route
           path="/customers/:id/edit"
-          element={userProfile ? <CustomerEditRoute /> : <Navigate to="/login" replace />}
+          element={userProfile ? withLayout(<CustomerEditRoute />) : <Navigate to="/login" replace />}
         />
         <Route path="*" element={<Navigate to={userProfile ? '/' : '/login'} replace />} />
       </Routes>

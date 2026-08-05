@@ -1,83 +1,84 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 function authHeaders(includeJson = false) {
-  const token = localStorage.getItem('accessToken')
-  const headers = new Headers()
+  const token = localStorage.getItem("accessToken");
+  const headers = new Headers();
 
   if (token) {
-    headers.append('Authorization', `Bearer ${token}`)
-    console.debug('[API] Authorization header set:', `Bearer ${token}`)
+    headers.append("Authorization", `Bearer ${token}`);
+    console.debug("[API] Authorization header set:", `Bearer ${token}`);
   } else {
-    console.debug('[API] No access token available for Authorization header')
+    console.debug("[API] No access token available for Authorization header");
   }
 
   if (includeJson) {
-    headers.append('Content-Type', 'application/json')
+    headers.append("Content-Type", "application/json");
   }
 
-  return headers
+  return headers;
 }
 
 async function handleResponse(response) {
-  const data = await response.json().catch(() => null)
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
-    console.error('[API] request failed', response.status, response.url, data)
-    throw new Error(data?.message || response.statusText || 'API request failed')
+    console.error("[API] request failed", response.status, response.url, data);
+    throw new Error(
+      data?.message || response.statusText || "API request failed",
+    );
   }
-  return data
+  return data;
 }
 
 export async function fetchCustomers() {
   const response = await fetch(`${API_BASE_URL}/api/customers`, {
-    method: 'GET',
+    method: "GET",
     headers: authHeaders(false),
-  })
-  return handleResponse(response)
+  });
+  return handleResponse(response);
 }
 
 export async function fetchMyCustomer() {
   const response = await fetch(`${API_BASE_URL}/api/customers/me`, {
-    method: 'GET',
+    method: "GET",
     headers: authHeaders(false),
-  })
-  return handleResponse(response)
+  });
+  return handleResponse(response);
 }
 
 export async function fetchCustomerById(customerId) {
   const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}`, {
-    method: 'GET',
+    method: "GET",
     headers: authHeaders(false),
-  })
-  return handleResponse(response)
+  });
+  return handleResponse(response);
 }
 
 export async function createCustomersss(customer) {
   const response = await fetch(`${API_BASE_URL}/api/customers`, {
-    method: 'POST',
+    method: "POST",
     headers: authHeaders(true),
     body: JSON.stringify(customer),
-  })
-  return handleResponse(response)
+  });
+  return handleResponse(response);
 }
 
 export async function createCustomer(formData) {
+  const response = await fetch(`${API_BASE_URL}/api/customers`, {
+    method: "POST",
+    headers: authHeaders(false),
+    body: formData,
+  });
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/customers`,
-    {
-      method: 'POST',
-      headers: authHeaders(false),
-      body: formData,
-    }
-  )
-
-  return handleResponse(response)
+  return handleResponse(response);
 }
 export async function updateCustomer(customerId, customer) {
+  const isFormDataPayload = customer instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}`, {
-    method: 'PUT',
-    headers: authHeaders(true),
-    body: JSON.stringify(customer),
-  })
-  return handleResponse(response)
+    method: "PUT",
+    headers: authHeaders(!isFormDataPayload),
+    body: isFormDataPayload ? customer : JSON.stringify(customer),
+  });
+
+  return handleResponse(response);
 }

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 
-function HomePage({ user, onLogout, isAdmin }) {
+function HomePage({ user, isAdmin }) {
   const navigate = useNavigate()
 
   return (
@@ -11,13 +11,17 @@ function HomePage({ user, onLogout, isAdmin }) {
           <h1>Home</h1>
           <p>Choose a menu option to continue.</p>
         </div>
-        <button className="secondary-button" onClick={onLogout}>Sign out</button>
       </header>
 
       <section className="menu-grid">
         <button className="card button-card" onClick={() => navigate('/customers')}>
           <h2>List view</h2>
           <p>View customers, open details, and edit from the list.</p>
+        </button>
+
+        <button className="card button-card" onClick={() => navigate('/digital-card')}>
+          <h2>Digital card view</h2>
+          <p>Open the company and NFC business card user page.</p>
         </button>
 
         {isAdmin ? (
