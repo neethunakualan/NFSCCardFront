@@ -77,7 +77,7 @@ function CustomerDetailRoute() {
   }, [id])
 
   return (
-    <CustomerDetailPage
+    <DigitalCardPage
       customer={customer}
       isLoading={loading}
       error={error}
